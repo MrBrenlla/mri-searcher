@@ -83,7 +83,6 @@ String usage = "java es.udc.fic.IndexNPL" + " [-index INDEX_PATH] [-openmode app
 			Directory dir = FSDirectory.open(Paths.get(indexPath));
 			Analyzer analyzer = new StandardAnalyzer();
 			IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-
 			if (openmode==null){
 				System.out.println("openMode not specified: Correct formats are append, create or create_or_append. Running create_or_append as default" );
 				iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
@@ -101,15 +100,26 @@ String usage = "java es.udc.fic.IndexNPL" + " [-index INDEX_PATH] [-openmode app
 			if (indexingmodel==null){
 				System.out.println("indexingmodel not specified: Correct formats are \"jm lambda\", \"dir mu\" and \"tfidf\". Running tfidf as default" );
 				iwc.setSimilarity(new ClassicSimilarity());
-			} else if (indexingmodel.equals("jm lambda")) {
-				iwc.setSimilarity(new LMJelinekMercerSimilarity(0.25f));
-			} else if (indexingmodel.equals("dir mu")) {
-				iwc.setSimilarity(new LMDirichletSimilarity());
-			} else if ( indexingmodel.equals("tfidf")) {
-				iwc.setSimilarity(new ClassicSimilarity());
 			} else {
-				System.out.println("indexingmodel error: Correct formats are \"jm lambda\", \"dir mu\" and \"tfidf\". Running tfidf as default" );
-				iwc.setSimilarity(new ClassicSimilarity());
+				String[] aux = indexingmodel.split(" ");
+				if (aux[0].equals("jm")) {
+					if(aux.length==1) {
+						System.out.println("Missing lambda value");
+						System.exit(0);
+					}
+					iwc.setSimilarity(new LMJelinekMercerSimilarity(Float.valueOf(aux[1])));
+				} else if (aux[0].equals("dir")) {
+					if(aux.length==1) {
+						System.out.println("Missing mu value");
+						System.exit(0);
+					}
+					iwc.setSimilarity(new LMDirichletSimilarity(Float.valueOf(aux[1])));
+				} else if ( aux[0].equals("tfidf")) {
+					iwc.setSimilarity(new ClassicSimilarity());
+				} else {
+					System.out.println("indexingmodel error: Correct formats are \"jm lambda\", \"dir mu\" and \"tfidf\". Running tfidf as default" );
+					iwc.setSimilarity(new ClassicSimilarity());
+				}
 			}
 
 
