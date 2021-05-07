@@ -98,26 +98,26 @@ String usage = "java es.udc.fic.IndexNPL" + " [-index INDEX_PATH] [-openmode app
 			}
 			
 			if (indexingmodel==null){
-				System.out.println("indexingmodel not specified: Correct formats are \"jm lambda\", \"dir mu\" and \"tfidf\". Running tfidf as default" );
+				System.out.println("indexingmodel not specified: Correct formats are jm LAMBDA, dir MU and tfidf. Running tfidf as default" );
 				iwc.setSimilarity(new ClassicSimilarity());
 			} else {
 				String[] aux = indexingmodel.split(" ");
 				if (aux[0].equals("jm")) {
 					if(aux.length==1) {
 						System.out.println("Missing lambda value");
-						System.exit(0);
+						System.exit(1);
 					}
 					iwc.setSimilarity(new LMJelinekMercerSimilarity(Float.valueOf(aux[1])));
 				} else if (aux[0].equals("dir")) {
 					if(aux.length==1) {
 						System.out.println("Missing mu value");
-						System.exit(0);
+						System.exit(1);
 					}
 					iwc.setSimilarity(new LMDirichletSimilarity(Float.valueOf(aux[1])));
 				} else if ( aux[0].equals("tfidf")) {
 					iwc.setSimilarity(new ClassicSimilarity());
 				} else {
-					System.out.println("indexingmodel error: Correct formats are \"jm lambda\", \"dir mu\" and \"tfidf\". Running tfidf as default" );
+					System.out.println("indexingmodel error: Correct formats are jm LAMBDA, dir MU and tfidf. Running tfidf as default" );
 					iwc.setSimilarity(new ClassicSimilarity());
 				}
 			}
