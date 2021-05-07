@@ -2,34 +2,35 @@ package es.udc.fic;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.*;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
 import org.apache.lucene.search.similarities.LMJelinekMercerSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import java.awt.desktop.SystemSleepEvent;
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.Properties;
 
-class docFeatures {
+class DocFeatures {
     private int docId;
     private float score;
     private boolean relevante;
+    private float numRelevantes;
 
-    public docFeatures(int docId, float score, boolean relevante) {
+    public DocFeatures(int docId, float score, boolean relevante) {
         this.docId = docId;
         this.score = score;
         this.relevante = relevante;
@@ -59,6 +60,57 @@ class docFeatures {
         this.relevante = relevante;
     }
 
+    public float getNumRelevantes() {
+        return numRelevantes;
+    }
+
+    public void setNumRelevantes(float numRelevantes) {
+        this.numRelevantes = numRelevantes;
+    }
+}
+
+class QueryFeatures {
+    private String nombreQuerie;
+    private DocFeatures[] docFeatures;
+    private float numRelevantes;
+    private float valorMetrica;
+
+    public QueryFeatures(String nombreQuerie, DocFeatures[] docFeatures) {
+        this.nombreQuerie = nombreQuerie;
+        this.docFeatures = docFeatures;
+    }
+
+    public String getNombreQuerie() {
+        return nombreQuerie;
+    }
+
+    public void setNombreQuerie(String nombreQuerie) {
+        this.nombreQuerie = nombreQuerie;
+    }
+
+    public DocFeatures[] getDocFeatures() {
+        return docFeatures;
+    }
+
+    public void setDocFeatures(DocFeatures[] docFeatures) {
+        this.docFeatures = docFeatures;
+    }
+
+    public float getNumRelevantes() {
+        return numRelevantes;
+    }
+
+    public void setNumRelevantes(float numRelevantes) {
+        this.numRelevantes = numRelevantes;
+    }
+
+    public float getValorMetrica() {
+        return valorMetrica;
+    }
+
+    public void setValorMetrica(float valorMetrica) {
+        this.valorMetrica = valorMetrica;
+    }
 }
 
 public class SearchEvalNPL {
@@ -77,12 +129,11 @@ public class SearchEvalNPL {
         } catch (IOException e) {
             e.printStackTrace();
         }
-         return docs;
+        return docs;
     }
 
-    private static Boolean esRelevante(int docId, String pathString, int querie) {
+    private static String[] leerRelevancia(String pathString, int querie) {
         Path path = Path.of(pathString);
-        Boolean relevante = false;
         String[] docs;
         String[] docIds;
         try (InputStream stream = Files.newInputStream(path)) {
@@ -94,239 +145,92 @@ public class SearchEvalNPL {
                 if (docs[i].substring(0, part).equals(querie+"")) {
                     content = content.replaceAll("\\s+"," ");
                     docIds = content.split(" ");
-                    if (docs[i].substring(0, part).equals(querie+"")){
-                        for (int j =0; j<docIds.length;j++) {
-                            if (!docIds[j].equals("") && Integer.valueOf(docIds[j]) == docId ) {
-                                return true;
-                            }
-                        }
-                    }
+                    return docIds;
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return relevante;
+        return null;
     }
 
-    private static int numRelevantesQuerie(String pathString, int querie, TopDocs topDocs) {
-        Path path = Path.of(pathString);
-        int relevante = 0;
-        String[] docs;
-        String[] docIds;
-        try (InputStream stream = Files.newInputStream(path)) {
-            String s = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            docs = s.split("\n   /\n");
-            for(int i=0; i<docs.length;i++) {
-                int part = docs[i].indexOf("\n");
-                String content  = docs[i].substring(part+1);
-                if (docs[i].substring(0, part).equals(querie+"")) {
-                    content = content.replaceAll("\\s+"," ");
-                    docIds = content.split(" ");
-                    if (docs[i].substring(0, part).equals(querie+"")){
-                        for (int x = 0; x<topDocs.scoreDocs.length; x++) {
-                            for(int y = 0; y<docIds.length;y++) {
-                                if (!docIds[y].equals("") && docIds[y].equals(topDocs.scoreDocs[x].doc+ ""))
-                                    relevante++;
-                            }
-                        }
-                        return relevante;
+    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures, ScoreDoc[] scoreDocs) {
+        int i,j;
+        float cont = 0;
+        DocFeatures[] docFeatures = queryFeatures.getDocFeatures();
+        for (i=0;i<scoreDocs.length;i++){
+            for (j=0; j<docIdsRelevancia.length;j++) {
+                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == scoreDocs[i].doc ) {
+                    cont++;
+                    if( i<docFeatures.length && scoreDocs[i].doc == docFeatures[i].getDocId()) {
+                            queryFeatures.getDocFeatures()[i].setRelevante(true);
                     }
+
                 }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return relevante;
-    }
-
-    private static void escribirResultado(docFeatures[][] docsFeatures, int cut, float[] allValues, int contNoRelevantes,
-                                          String[] queriesArray, String querie) {
-        int i,j,cont=0;
-        float allMetricas = 0;
-        for (i=0; i<queriesArray.length; i++) {
-            if (allValues[i] == -1) continue;
-            System.out.println("Querie: " + queriesArray[i]);
-            System.out.println("Documentos: ");
-            for (j=0; j<docsFeatures[i].length; j++) {
-                System.out.println("DocId: " + docsFeatures[i][j].getDocId());
-                System.out.println("Score: " + docsFeatures[i][j].getScore());
-                System.out.println("Es relevante? : " + docsFeatures[i][j].isRelevante());
-                cont++;
-            }
-            System.out.println("Valor de la metrica: " + allValues[i]);
-            allMetricas = allMetricas + allValues[i];
-            System.out.println(" ");
-        }
-        System.out.println("Valor promediado metrica: "+ allMetricas/cont);
-
-
-    }
-
-    private static float[] leerQuerie(String queries, String querytext, int cut, QueryParser parser, IndexSearcher searcher,
-                                   String relevancetext, String metrica) throws ParseException, IOException {
-        String[] queriesArray, querieNames;
-        queriesArray = leerQueryText(querytext);
-        int i,j,contNoRelevantes = 0;
-        float metricaValue = 0;
-        docFeatures [][] docsFeatures;
-        TopDocs topDocs;
-        Query query;
-        float numRelevantes = 0;
-        float [] allValues;
-
-        if (queries.equals("all")) {
-            docsFeatures = new docFeatures[queriesArray.length][cut];
-            allValues = new float[queriesArray.length];
-            querieNames = queriesArray;
-            for (i = 0; i<queriesArray.length ; i++){
-                query = parser.parse(queriesArray[i]);
-                int numDocsQuerie = searcher.count(query);
-                if (numDocsQuerie == 0) {
-                    allValues[i] = -1;
-                    continue;
+                if (i<docFeatures.length) {
+                    queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
+                    //System.out.println(" en la iteracion: "+ i + "contador: " + queryFeatures.getDocFeatures()[i].getNumRelevantes());
                 }
-                topDocs = searcher.search(query,numDocsQuerie);
-                float numRelevantesQuerie = (float) numRelevantesQuerie(relevancetext,i+1,topDocs);
-
-                if (numRelevantesQuerie == 0) {
-                    allValues[i] = -1;
-                    contNoRelevantes++;
-                    continue;
-                }
-                for (j = 0; j<cut && j<topDocs.scoreDocs.length; j++) {
-                    Boolean relevante = esRelevante(topDocs.scoreDocs[j].doc,relevancetext, i+1);
-                    docsFeatures[i][j] = new docFeatures(
-                            topDocs.scoreDocs[j].doc,
-                            topDocs.scoreDocs[j].score,
-                            relevante
-                    );
-                    if (relevante) {
-                        numRelevantes++;
-                        if (metrica.equals("MAP")) {
-                            metricaValue = metricaValue + (numRelevantes/(j+1));
-                        }
-                    }
-                }
-                if (metrica.equals("P")) {
-                    metricaValue = numRelevantes/(float)cut;
-                    System.out.println(
-                            metricaValue
-                    );
-                } else if (metrica.equals("R")) {
-                    if (numRelevantes == 0) metricaValue = 0;
-                    else metricaValue = numRelevantesQuerie/numRelevantes;
-                } else if (metrica.equals("MAP")){
-                    if (topDocs.scoreDocs.length<cut) metricaValue=metricaValue/topDocs.scoreDocs.length;
-                    else metricaValue = metricaValue/cut;
-                }
-                allValues[i] = metricaValue;
-                metricaValue=0;
-                numRelevantes = 0;
-            }
-        } else {
-            int iniQuerie;
-            int finQuerie;
-            String[] partsQuerie = queries.split("-");
-            iniQuerie = Integer.valueOf(partsQuerie[0])-1;
-            if (partsQuerie.length>1) {
-
-                finQuerie = Integer.valueOf(partsQuerie[1])-1;
-                allValues = new float[finQuerie-iniQuerie];
-                querieNames = new String[finQuerie-iniQuerie];
-                docsFeatures = new docFeatures[finQuerie-iniQuerie][cut];
-                for (i = iniQuerie; i <=finQuerie;i++) {
-                    querieNames[i] = queriesArray[i];
-                    query = parser.parse(queriesArray[i]);
-                    int numDocsQuerie = searcher.count(query);
-                    if (numDocsQuerie == 0) {
-                        allValues[i] = -1;
-                        continue;
-                    }
-                    topDocs = searcher.search(query,numDocsQuerie);
-                    float numRelevantesQuerie = (float) numRelevantesQuerie(relevancetext,i+1,topDocs);
-
-                    if (numRelevantesQuerie == 0) {
-                        contNoRelevantes++;
-                        allValues[i] = -1;
-                        continue;
-                    }
-                    for (j = 0; j<cut && j<topDocs.scoreDocs.length; j++) {
-                        Boolean relevante = esRelevante(topDocs.scoreDocs[j].doc,relevancetext, i+1);
-                        docsFeatures[i][j] = new docFeatures(
-                                topDocs.scoreDocs[j].doc,
-                                topDocs.scoreDocs[j].score,
-                                relevante
-                        );
-                        if (relevante) {
-                            numRelevantes++;
-                            if (metrica.equals("MAP")) {
-                                metricaValue = metricaValue + (numRelevantes/(j+1));
-                            }
-                        }
-                    }
-                    if (metrica.equals("P")) {
-                        metricaValue = numRelevantes/(float) cut;
-                    } else if (metrica.equals("R")) {
-                        if (numRelevantes == 0) metricaValue = 0;
-                        else metricaValue = numRelevantesQuerie/numRelevantes;
-                    } else if (metrica.equals("MAP")){
-                        if (topDocs.scoreDocs.length<cut) metricaValue=metricaValue/topDocs.scoreDocs.length;
-                        else metricaValue = metricaValue/cut;
-                    }
-                    allValues[i] = metricaValue;
-                    metricaValue = 0;
-                    numRelevantes = 0;
-                }
-
-            } else {
-                allValues = new float[1];
-                docsFeatures = new docFeatures[1][cut];
-                querieNames = new String[1];
-                querieNames[0] = queriesArray[iniQuerie];
-                query = parser.parse(queriesArray[iniQuerie]);
-                int numDocsQuerie = searcher.count(query);
-                if (numDocsQuerie == 0) return null;
-                topDocs = searcher.search(query,numDocsQuerie);
-                float numRelevantesQuerie = (float) numRelevantesQuerie(relevancetext,iniQuerie+1,topDocs);
-
-                if (numRelevantesQuerie == 0) {
-                    contNoRelevantes++;
-                }
-                for (j = 0; j<topDocs.scoreDocs.length; j++) {
-                    //System.out.println(i+1);
-                    Boolean relevante = esRelevante(topDocs.scoreDocs[j].doc,relevancetext, iniQuerie+1);
-                    docsFeatures[0][j] = new docFeatures(
-                            topDocs.scoreDocs[j].doc,
-                            topDocs.scoreDocs[j].score,
-                            relevante
-                    );
-                    if (relevante) {
-                        numRelevantes++;
-                        if (metrica.equals("MAP")) {
-                            metricaValue = metricaValue + (numRelevantes/(j+1));
-                        }
-                    }
-                }
-                if (metrica.equals("P")) {
-                    metricaValue = numRelevantes/cut;
-                } else if (metrica.equals("R")) {
-                    if (numRelevantes == 0) metricaValue = 0;
-                    else metricaValue = numRelevantesQuerie/numRelevantes;
-                } else if (metrica.equals("MAP")){
-                    if (topDocs.scoreDocs.length<cut) metricaValue=metricaValue/topDocs.scoreDocs.length;
-                    else metricaValue = metricaValue/cut;
-                }
-                allValues[0] = metricaValue;
             }
         }
-        escribirResultado(docsFeatures,cut,allValues,contNoRelevantes, querieNames, queries);
-        return allValues;
-
+        queryFeatures.setNumRelevantes(cont);
     }
 
-    public static float[] comenzarBusqueda(Path indexDir, String search, float smooth, String queries, String querytext,
-                                        int cut,String relevancetext, String metrica) {
+    private static void CalcularMetrica(QueryFeatures[] queryFeatures, String metrica) {
+        int i,j;
+        float precision=0,cont = 0;
+        DocFeatures[] docFeatures;
+        for(i = 0;i<queryFeatures.length;i++) {
+            if (queryFeatures[i] == null) continue;
+            docFeatures = queryFeatures[i].getDocFeatures();
+
+            if (metrica.equals("P")) {
+                queryFeatures[i].setValorMetrica(docFeatures[docFeatures.length-1].getNumRelevantes()/(float)docFeatures.length);
+            } else if (metrica.equals("R")) {
+                if (queryFeatures[i].getNumRelevantes() == 0) queryFeatures[i].setValorMetrica(0);
+                else queryFeatures[i].setValorMetrica(docFeatures[docFeatures.length-1].getNumRelevantes()/queryFeatures[i].getNumRelevantes());
+            } else if (metrica.equals("MAP")) {
+                for (j = 0;j<docFeatures.length;j++) {
+                    if (docFeatures[j].isRelevante()) {
+                        precision = precision + docFeatures[j].getNumRelevantes()/(float)(j+1);
+                        cont++;
+                    }
+
+                }
+                queryFeatures[i].setValorMetrica(precision/cont);
+            }
+        }
+    }
+
+    private static void escribirResultados(QueryFeatures[] queryFeatures, int top) {
+        int i,j;
+        for (i=0;i<queryFeatures.length;i++) {
+            if (queryFeatures[i] == null) continue;
+            System.out.println("Query: " + queryFeatures[i].getNombreQuerie());
+            System.out.println("Top Documentos: " );
+            for(j=0;j<queryFeatures[i].getDocFeatures().length;j++) {
+                //TODO obtener los indices para printear los campos del documento
+                System.out.println("DocId: " + queryFeatures[i].getDocFeatures()[j].getDocId());
+                System.out.println("Score: " + queryFeatures[i].getDocFeatures()[j].getScore());
+                System.out.println("Es relevante? : " + queryFeatures[i].getDocFeatures()[j].isRelevante());
+
+            }
+            System.out.println("Metrica individual: " + queryFeatures[i].getValorMetrica());
+        }
+        //TODO realizar la implementacion de la metrica total
+        //System.out.println("Metrica total: " + queryFeatures[i].getValorMetrica());
+    }
+
+    public static QueryFeatures [] comenzarBusqueda(Path indexDir, String metrica, int cut, String queries, String search, float smooth) {
+        Properties p = new Properties();
+        try {
+            p.load(Files.newInputStream(Path.of("./src/main/resources/config.properties")));
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+        String querytext = p.getProperty("query-text");
+        String relevancetext = p.getProperty("relevance-text");
+
         Directory dir;
         try {
             IndexReader readerIndex;
@@ -335,6 +239,15 @@ public class SearchEvalNPL {
             IndexSearcher searcher = new IndexSearcher(readerIndex);
             Analyzer analyzer = new StandardAnalyzer();
             QueryParser parser = new QueryParser("contents", analyzer);
+            Query query;
+            TopDocs topDocs;
+
+            String [] queryArray;
+            String [] docIdsRelevanciaQuery;
+            QueryFeatures [] queryFeatures = null;
+            DocFeatures[] docFeatures;
+            int i,j;
+
 
 
             if (search==null){
@@ -351,45 +264,76 @@ public class SearchEvalNPL {
                 searcher.setSimilarity(new ClassicSimilarity());
             }
 
-            return leerQuerie(queries,querytext,cut,parser,searcher,relevancetext, metrica);
+            queryArray=leerQueryText(querytext);
+
+
+            if (queries.equals("all")) {
+                queryFeatures = new QueryFeatures[queryArray.length];
+                for(i=0;i<queryArray.length;i++) {
+                    query = parser.parse(queryArray[i]);
+                    int numDocsQuerie = searcher.count(query);
+                    if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
+                    else docFeatures = new DocFeatures[cut];
+                    if (numDocsQuerie == 0) {
+                        queryFeatures[i] = null;
+                        continue;
+                    }
+                    topDocs = searcher.search(query,numDocsQuerie);
+
+                    for (j=0;j<cut&&j<numDocsQuerie;j++) {
+                        docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
+                    }
+                    queryFeatures[i] = new QueryFeatures(queryArray[i],docFeatures);
+                    docIdsRelevanciaQuery = leerRelevancia(relevancetext,i+1);
+                    if (docIdsRelevanciaQuery == null) {
+                        System.err.println("No existen Ids relevantes para esta query");
+                        System.exit(1);
+                    }
+                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[i],topDocs.scoreDocs);
+
+
+                }
+
+
+            }
+
+
+            CalcularMetrica(queryFeatures,metrica);
+
+            return queryFeatures;
 
         } catch (IOException | ParseException e) {
             e.printStackTrace();
         }
+
         return null;
+
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         String usage = "java es.udc.fic.IndexNPL" + " [-indexin INDEX_PATH] [-cut n] [-metrica P|R|MAP]" +
-                       " [-top m] [-queries all|int1|int1-int2] [-search jm lambda| dir mu| tfidf]              \n\n";
+                " [-top m] [-queries all|int1|int1-int2] [-search jm lambda| dir mu| tfidf]              \n\n";
 
-        Properties p = new Properties();
-        try {
-            p.load(Files.newInputStream(Path.of("./src/main/resources/config.properties")));
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        }
-        String querytext = p.getProperty("query-text");
-        String relevancetext = p.getProperty("relevance-text");
         String indexPath = null;
         int cut = -1;
         String metrica = null;
-        String top = null;
+        int top = -1;
         String queries = null;
         String search = null;
         float smooth = -1.f;
+        QueryFeatures[] queryFeatures;
         for (int i = 0; i < args.length; i++) {
             if ("-indexin".equals(args[i])) {
                 indexPath = args[i + 1];
                 i++;
             } else if ("-cut".equals(args[i])) {
-                 cut = Integer.valueOf(args[i + 1]);
+                cut = Integer.valueOf(args[i + 1]);
                 i++;
             } else if ("-metrica".equals(args[i])) {
-                 metrica = args[i + 1];
+                metrica = args[i + 1];
                 i++;
             } else if ("-top".equals(args[i])) {
-                 top = args[i + 1];
+                top = Integer.valueOf(args[i + 1]);
                 i++;
             } else if ("-queries".equals(args[i])) {
                 queries = args[i + 1];
@@ -406,7 +350,7 @@ public class SearchEvalNPL {
             }
         }
 
-        if(indexPath == null || cut == -1 || metrica == null || top == null || queries == null || smooth == -1.f) {
+        if(indexPath == null || cut == -1 || metrica == null || top == -1 || queries == null || smooth == -1.f) {
             System.err.println("Usage: " + usage);
             System.exit(1);
         }
@@ -418,8 +362,11 @@ public class SearchEvalNPL {
             System.exit(1);
         }
 
-        Date start = new Date();
 
-        comenzarBusqueda(indexDir,search,smooth,queries,querytext,cut,relevancetext,metrica);
+        queryFeatures = comenzarBusqueda(indexDir, metrica, cut, queries, search, smooth);
+
+        escribirResultados(queryFeatures, top);
+
     }
+
 }
