@@ -43,9 +43,7 @@ public class TrainingTestNPL {
 		}
 		float aux = 0f;
 		System.out.printf("%s10", "promedio");
-		for (int i=0; i<test.length;i++) {
-			aux+=test[i];
-		}
+		for (int i=0; i<test.length;i++) if(test[i]>0) aux+=test[i];
 		System.out.printf(" %10.1f%n", aux/test.length);
 	}
 	
@@ -60,7 +58,7 @@ public class TrainingTestNPL {
 		}
 		results[11]=new float[11];
 		for(int i=0; i<11;i++) {
-			for (int j=0; j < results[i].length-1; j++) results[11][i] += results[i][j];
+			for (int j=0; j < results[i].length-1; j++) if(results[i][j]>0) results[11][i] += results[i][j];
 			results[11][i]=results[11][i]/results[i].length;
 		}
 		return results;
