@@ -295,14 +295,78 @@ public class SearchEvalNPL {
                 }
 
 
+            } else {
+                int iniQuery;
+                int finQuery;
+                String[] partsQuery = queries.split("-");
+                iniQuery = Integer.valueOf(partsQuery[0])-1;
+                if (partsQuery.length>1) {
+                    finQuery = Integer.valueOf(partsQuery[1])-1;
+                    System.out.println(iniQuery + "-" + finQuery);
+                    queryFeatures = new QueryFeatures[(finQuery-iniQuery)+1];
+                    for(i=0;i<queryFeatures.length;i++) {
+                        query = parser.parse(queryArray[i]);
+                        int numDocsQuerie = searcher.count(query);
+                        if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
+                        else docFeatures = new DocFeatures[cut];
+                        if (numDocsQuerie == 0) {
+                            queryFeatures[i] = null;
+                            continue;
+                        }
+                        topDocs = searcher.search(query,numDocsQuerie);
+
+                        for (j=0;j<cut&&j<numDocsQuerie;j++) {
+                            docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
+                        }
+                        queryFeatures[i] = new QueryFeatures(queryArray[i],docFeatures);
+                        docIdsRelevanciaQuery = leerRelevancia(relevancetext,i+1);
+                        if (docIdsRelevanciaQuery == null) {
+                            System.err.println("No existen Ids relevantes para esta query");
+                            System.exit(1);
+                        }
+                        verRelevancia(docIdsRelevanciaQuery,queryFeatures[i],topDocs.scoreDocs);
+
+                    }
+
+                } else {
+                    queryFeatures = new QueryFeatures[1];
+                    for(i=0;i<queryFeatures.length;i++) {
+                        query = parser.parse(queryArray[i]);
+                        int numDocsQuerie = searcher.count(query);
+                        if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
+                        else docFeatures = new DocFeatures[cut];
+                        if (numDocsQuerie == 0) {
+                            queryFeatures[i] = null;
+                            continue;
+                        }
+                        topDocs = searcher.search(query,numDocsQuerie);
+
+                        for (j=0;j<cut&&j<numDocsQuerie;j++) {
+                            docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
+                        }
+                        queryFeatures[i] = new QueryFeatures(queryArray[i],docFeatures);
+                        docIdsRelevanciaQuery = leerRelevancia(relevancetext,i+1);
+                        if (docIdsRelevanciaQuery == null) {
+                            System.err.println("No existen Ids relevantes para esta query");
+                            System.exit(1);
+                        }
+                        verRelevancia(docIdsRelevanciaQuery,queryFeatures[i],topDocs.scoreDocs);
+
+                    }
+
+                }
             }
 
+            if (queryFeatures == null) {
+                System.err.println("Ha habido un error con el valor de las queries");
+                System.exit(-1);
+            }
 
             CalcularMetrica(queryFeatures,metrica);
 
             return queryFeatures;
 
-        } catch (IOException | ParseException e) {
+        } catch (IOException | ParseException | NumberFormatException e) {
             e.printStackTrace();
         }
 
@@ -364,7 +428,10 @@ public class SearchEvalNPL {
 
 
         queryFeatures = comenzarBusqueda(indexDir, metrica, cut, queries, search, smooth);
-
+        if (queryFeatures==null) {
+            System.err.println("Ha habido un error con el valor de las queries");
+            System.exit(-1);
+        }
         escribirResultados(queryFeatures, top);
 
     }
