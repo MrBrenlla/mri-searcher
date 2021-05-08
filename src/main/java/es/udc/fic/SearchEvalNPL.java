@@ -232,6 +232,7 @@ public class SearchEvalNPL {
         String relevancetext = p.getProperty("relevance-text");
 
         Directory dir;
+        QueryFeatures [] queryFeatures = null;
         try {
             IndexReader readerIndex;
             dir = FSDirectory.open(indexDir);
@@ -244,7 +245,6 @@ public class SearchEvalNPL {
 
             String [] queryArray;
             String [] docIdsRelevanciaQuery;
-            QueryFeatures [] queryFeatures = null;
             DocFeatures[] docFeatures;
             int i,j;
 
@@ -357,10 +357,7 @@ public class SearchEvalNPL {
                 }
             }
 
-            if (queryFeatures == null) {
-                System.err.println("Ha habido un error con el valor de las queries");
-                System.exit(-1);
-            }
+            
 
             CalcularMetrica(queryFeatures,metrica);
 
@@ -368,6 +365,11 @@ public class SearchEvalNPL {
 
         } catch (IOException | ParseException | NumberFormatException e) {
             e.printStackTrace();
+        }finally {
+        	if (queryFeatures == null) {
+                System.err.println("Ha habido un error con el valor de las queries");
+                System.exit(-1);
+            }
         }
 
         return null;
@@ -410,6 +412,7 @@ public class SearchEvalNPL {
                 } else{
                     search = args[i + 1];
                     i++;
+                    smooth=0f;
                 }
             }
         }

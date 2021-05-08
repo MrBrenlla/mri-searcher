@@ -3,9 +3,7 @@ package es.udc.fic;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Properties;
 
 public class TrainingTestNPL {
 
@@ -20,40 +18,52 @@ public class TrainingTestNPL {
 		return max;
 	}
 	
+	private static float[] transform(QueryFeatures[] a) {
+		float[] x = new float[a.length];
+		for (int i = 0; i<a.length;i++) x[i]=a[i].getValorMetrica();
+		return x;
+	}
+	
 	private static void resulatdos(float[][] train, float[] test, float valor,float best,int trainini, int testini, String type,PrintWriter pw) {
 		System.out.println("Training:");
-		System.out.printf("%10s %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %n",type,0f,valor,valor*2,valor*3,valor*4,valor*5,valor*6,valor*7,valor*8,valor*9,valor*10);
+		if(type.equals("λ")) System.out.printf("%10s %10.4f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %n",type,valor*0.001f,valor,valor*2,valor*3,valor*4,valor*5,valor*6,valor*7,valor*8,valor*9,valor*10);
+		else System.out.printf("%10s %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %n",type,0f,valor,valor*2,valor*3,valor*4,valor*5,valor*6,valor*7,valor*8,valor*9,valor*10);
 		for (int j=0; j<train[0].length;j++) {
-			System.out.printf("%10.1f", trainini+j);
+			System.out.printf("%10d", trainini+j);
 			for (int i=0; i<11;i++) {
-				System.out.printf(" %10.1f", train[i][j]);
+				System.out.printf(" %10f", train[i][j]);
 			}
 			System.out.println("");
 		}
 		System.out.printf("%10s", "promedio");
-		for (int i=0; i<train[0].length;i++) {
-			System.out.printf(" %10.1f", train[11][i]);
+		for (int i=0; i<train.length-1;i++) {
+			System.out.printf(" %10f", train[11][i]);
 		}
 		System.out.println("");
 		
 		System.out.println("Test ( "+type+" = "+best+" ):");
 		for (int i=0; i<test.length;i++) {
-			System.out.printf("%10.1f %10.1f%n", testini+i, test[i]);
-			pw.printf("<%d,%d>%n", testini+i, test[i]);
+			System.out.printf("%10d %10f%n", testini+i, test[i]);
+			pw.printf("<%d;%f>%n", testini+i, test[i]);
 		}
 		float aux = 0f;
-		System.out.printf("%s10", "promedio");
+		System.out.printf("%10s", "promedio");
 		for (int i=0; i<test.length;i++) if(test[i]>0) aux+=test[i];
-		System.out.printf(" %10.1f%n", aux/test.length);
+		System.out.printf(" %10f%n", aux/test.length);
 	}
 	
 	private static float[][] training(float min,int[] q, boolean jm, String metr,String index,int cut) {
 		float[][] results = new float[12][];
-		for(int i=0;i<11;i++) {
+		if (jm) {
+			results[0]=transform(SearchEvalNPL.comenzarBusqueda(Path.of(index),metr,cut,q[0]+"-"+q[1],"jm",min*0.001f));
+		}else {
+			results[0]=transform(SearchEvalNPL.comenzarBusqueda(Path.of(index),metr,cut,q[0]+"-"+q[1],"dir",0));
+		}
+		for(int i=1;i<11;i++) {
 			if (jm) {
-				results[i]=SearchEvalNPL.comenzarBusqueda(Path.of(index),"jm",min*i,q[0]+"-"+q[1], cut, metr);
+				results[i]=transform(SearchEvalNPL.comenzarBusqueda(Path.of(index),metr,cut,q[0]+"-"+q[1],"jm",min*i));
 			}else {
-				results[i]=SearchEvalNPL.comenzarBusqueda(Path.of(index),"dir",min*i,q[0]+"-"+q[1], cut, metr);
+				results[i]=transform(SearchEvalNPL.comenzarBusqueda(Path.of(index),metr,cut,q[0]+"-"+q[1],"dir",min*i));
 			}
 		}
 		results[11]=new float[11];
@@ -156,12 +166,14 @@ String usage = "java es.udc.fic.TrainingTestNPL" + " -evaljm INT1-INT2 INT3-INT4
 			if (jm) {
 				float[][] jmTrainResults = training(0.1f,trainjm,true,metr,indexPath,n);
 				float lambda=0.1f * max(jmTrainResults);
-				float[] jmTestResults= SearchEvalNPL.comenzarBusqueda(Path.of(indexPath),"jm",lambda,testjm[0]+"-"+testjm[1], n, metr);
+				if (lambda==0) lambda=0.0001f;
+				float[] jmTestResults= transform(SearchEvalNPL.comenzarBusqueda(Path.of(indexPath),metr,n,testjm[0]+"-"+testjm[1],"jm",lambda));
 				
 				if(dir) {
 					float[][] dirTrainResults = training(500f,traindir,false,metr,indexPath,n);
 					float mu=500f * max(dirTrainResults);
-					float[] dirTestResults=SearchEvalNPL.comenzarBusqueda(Path.of(indexPath),"dir",mu,testdir[0]+"-"+testdir[1], n, metr);
+					
+					float[] dirTestResults=transform(SearchEvalNPL.comenzarBusqueda(Path.of(indexPath),metr,n,testdir[0]+"-"+testdir[1],"dir",mu));
 					System.out.println("\n*****************************************************************RESULTADOS*****************************************************************\n");
 					resulatdos(dirTrainResults, dirTestResults, 500f ,mu ,traindir[0], testdir[0],"µ",pw);
 				}else System.out.println("\n*****************************************************************RESULTADOS*****************************************************************\n");
@@ -170,7 +182,7 @@ String usage = "java es.udc.fic.TrainingTestNPL" + " -evaljm INT1-INT2 INT3-INT4
 				
 				float[][] dirTrainResults = training(500f,traindir,false,metr,indexPath,n);
 				float mu=500f * max(dirTrainResults);
-				float[] dirTestResults=SearchEvalNPL.comenzarBusqueda(Path.of(indexPath),"dir",mu,testdir[0]+"-"+testdir[1], n, metr);
+				float[] dirTestResults=transform(SearchEvalNPL.comenzarBusqueda(Path.of(indexPath),metr,n,testdir[0]+"-"+testdir[1],"dir",mu));
 				System.out.println("\n*****************************************************************RESULTADOS*****************************************************************\n");
 				resulatdos(dirTrainResults, dirTestResults, 500f ,mu ,traindir[0], testdir[0],"µ",pw);
 			}
