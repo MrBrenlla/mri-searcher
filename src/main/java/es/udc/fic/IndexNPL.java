@@ -39,7 +39,7 @@ public class IndexNPL {
 
 	/** Index all text files under a directory. */
 	public static void main(String[] args) {
-String usage = "java es.udc.fic.IndexNPL" + " [-index INDEX_PATH] [-openmode append|create|create_or_append]\n\n";
+String usage = "java es.udc.fic.IndexNPL" + " -index INDEX_PATH [-openmode append|create|create_or_append]\n\n";
 		
 		Properties p = new Properties();
 		try {
