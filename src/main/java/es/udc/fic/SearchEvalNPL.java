@@ -2,8 +2,10 @@ package es.udc.fic;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
@@ -22,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 
 class DocFeatures {
@@ -202,23 +206,39 @@ public class SearchEvalNPL {
         }
     }
 
-    private static void escribirResultados(QueryFeatures[] queryFeatures, int top) {
-        int i,j;
+    private static void escribirResultados(QueryFeatures[] queryFeatures, int top, IndexReader readerIndex) throws IOException {
+        int i,j, limit, docId;
+        float metricaTotal = 0,totalQueries;
+        Iterator<IndexableField> itFields;
+        IndexableField field;
+        totalQueries=queryFeatures.length;
         for (i=0;i<queryFeatures.length;i++) {
-            if (queryFeatures[i] == null) continue;
+            if (queryFeatures[i] == null) {
+                totalQueries--;
+                continue;
+            }
             System.out.println("Query: " + queryFeatures[i].getNombreQuerie());
+
+            if (queryFeatures[i].getDocFeatures().length<top) limit=queryFeatures[i].getDocFeatures().length;
+            else limit = top;
+
             System.out.println("Top Documentos: " );
-            for(j=0;j<queryFeatures[i].getDocFeatures().length;j++) {
-                //TODO obtener los indices para printear los campos del documento
-                System.out.println("DocId: " + queryFeatures[i].getDocFeatures()[j].getDocId());
+            for(j=0;j<limit;j++) {
+                docId = queryFeatures[i].getDocFeatures()[j].getDocId();
+                itFields = readerIndex.document(docId).getFields().iterator();
+                while (itFields.hasNext()) {
+                    field = itFields.next();
+                    System.out.println(field.name() + ": " + field.stringValue());
+                }
+
                 System.out.println("Score: " + queryFeatures[i].getDocFeatures()[j].getScore());
                 System.out.println("Es relevante? : " + queryFeatures[i].getDocFeatures()[j].isRelevante());
 
             }
             System.out.println("Metrica individual: " + queryFeatures[i].getValorMetrica());
+            metricaTotal=+ queryFeatures[i].getValorMetrica();
         }
-        //TODO realizar la implementacion de la metrica total
-        //System.out.println("Metrica total: " + queryFeatures[i].getValorMetrica());
+        System.out.println("Metrica total: " + (metricaTotal/totalQueries));
     }
 
     public static QueryFeatures [] comenzarBusqueda(Path indexDir, String metrica, int cut, String queries, String search, float smooth) {
@@ -247,7 +267,6 @@ public class SearchEvalNPL {
             String [] docIdsRelevanciaQuery;
             DocFeatures[] docFeatures;
             int i,j;
-
 
 
             if (search==null){
@@ -435,7 +454,18 @@ public class SearchEvalNPL {
             System.err.println("Ha habido un error con el valor de las queries");
             System.exit(-1);
         }
-        escribirResultados(queryFeatures, top);
+        Directory dir;
+        try {
+            IndexReader readerIndex;
+            dir = FSDirectory.open(indexDir);
+            readerIndex = DirectoryReader.open(dir);
+
+            escribirResultados(queryFeatures, top, readerIndex);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
     }
 
