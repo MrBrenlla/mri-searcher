@@ -321,10 +321,10 @@ public class SearchEvalNPL {
                 iniQuery = Integer.valueOf(partsQuery[0])-1;
                 if (partsQuery.length>1) {
                     finQuery = Integer.valueOf(partsQuery[1])-1;
-                    System.out.println(iniQuery + "-" + finQuery);
+                    //System.out.println(iniQuery + "-" + finQuery);
                     queryFeatures = new QueryFeatures[(finQuery-iniQuery)+1];
                     for(i=0;i<queryFeatures.length;i++) {
-                        query = parser.parse(queryArray[i]);
+                        query = parser.parse(queryArray[i+iniQuery]);
                         int numDocsQuerie = searcher.count(query);
                         if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
                         else docFeatures = new DocFeatures[cut];
@@ -337,8 +337,8 @@ public class SearchEvalNPL {
                         for (j=0;j<cut&&j<numDocsQuerie;j++) {
                             docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
                         }
-                        queryFeatures[i] = new QueryFeatures(queryArray[i],docFeatures);
-                        docIdsRelevanciaQuery = leerRelevancia(relevancetext,i+1);
+                        queryFeatures[i] = new QueryFeatures(queryArray[i+iniQuery],docFeatures);
+                        docIdsRelevanciaQuery = leerRelevancia(relevancetext,i+iniQuery+1);
                         if (docIdsRelevanciaQuery == null) {
                             System.err.println("No existen Ids relevantes para esta query");
                             System.exit(1);
@@ -349,29 +349,27 @@ public class SearchEvalNPL {
 
                 } else {
                     queryFeatures = new QueryFeatures[1];
-                    for(i=0;i<queryFeatures.length;i++) {
-                        query = parser.parse(queryArray[i]);
-                        int numDocsQuerie = searcher.count(query);
-                        if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
-                        else docFeatures = new DocFeatures[cut];
-                        if (numDocsQuerie == 0) {
-                            queryFeatures[i] = null;
-                            continue;
-                        }
-                        topDocs = searcher.search(query,numDocsQuerie);
-
-                        for (j=0;j<cut&&j<numDocsQuerie;j++) {
-                            docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
-                        }
-                        queryFeatures[i] = new QueryFeatures(queryArray[i],docFeatures);
-                        docIdsRelevanciaQuery = leerRelevancia(relevancetext,i+1);
-                        if (docIdsRelevanciaQuery == null) {
-                            System.err.println("No existen Ids relevantes para esta query");
-                            System.exit(1);
-                        }
-                        verRelevancia(docIdsRelevanciaQuery,queryFeatures[i],topDocs.scoreDocs);
-
+                    query = parser.parse(queryArray[iniQuery]);
+                    int numDocsQuerie = searcher.count(query);
+                    if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
+                    else docFeatures = new DocFeatures[cut];
+                    if (numDocsQuerie == 0) {
+                        queryFeatures[iniQuery] = null;
+                        return null;
                     }
+                    topDocs = searcher.search(query,numDocsQuerie);
+
+                    for (j=0;j<cut&&j<numDocsQuerie;j++) {
+                        docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
+                    }
+                    queryFeatures[iniQuery] = new QueryFeatures(queryArray[iniQuery],docFeatures);
+                    docIdsRelevanciaQuery = leerRelevancia(relevancetext,iniQuery+1);
+                    if (docIdsRelevanciaQuery == null) {
+                        System.err.println("No existen Ids relevantes para esta query");
+                        System.exit(1);
+                    }
+                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[iniQuery],topDocs.scoreDocs);
+
 
                 }
             }
