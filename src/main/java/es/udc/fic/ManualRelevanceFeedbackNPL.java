@@ -252,20 +252,20 @@ public class ManualRelevanceFeedbackNPL {
             searcher.setSimilarity(new ClassicSimilarity());
         }
         
-        queryFeatures = busquedaInicial(metrica, cut,docIdsRelevanciaQuery, parser.parse(leerQueryText(querytext,querynum)),searcher);
+        queryFeatures = busquedaInicial(metrica, cut,docIdsRelevanciaQuery, parser.parse(leerQueryText(querytext,querynum).toLowerCase()),searcher);
         escribirResultados(queryFeatures, searcher);
         
         System.out.print("Desea reformular la query?(S/N) ");
         if (!in.nextLine().toLowerCase().equals("s")) aux=false;
         while(aux) {
         	System.out.print("Nueva query: ");
-        	queryFeatures = busquedaInicial(metrica, cut,docIdsRelevanciaQuery,parser.parse(in.nextLine()),searcher);
+        	queryFeatures = busquedaInicial(metrica, cut,docIdsRelevanciaQuery,parser.parse(in.nextLine().toLowerCase()),searcher);
             escribirResultados(queryFeatures, searcher);
             System.out.print("Desea reformular la query?(S/N) ");
             if (!in.nextLine().toLowerCase().equals("s")) aux=false;
         }
         System.out.print("ending program "+aux);
-        
+        in.close();
         } catch (IOException e1) {
             e1.printStackTrace();
         } catch (ParseException e) {
