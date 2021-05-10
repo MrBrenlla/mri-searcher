@@ -109,22 +109,19 @@ public class ManualRelevanceFeedbackNPL {
     private static void escribirResultados(QueryFeatures queryFeatures,IndexSearcher searcher, HashSet<Integer> founded,boolean res) throws IOException {
             if (queryFeatures == null) return;
             DocFeatures[] docs=queryFeatures.getDocFeatures();
-            System.out.println("Query: " + queryFeatures.getNombreQuerie()
+            System.out.println("\nQuery: " + queryFeatures.getNombreQuerie()
             	+"\nMetrica: " + queryFeatures.getValorMetrica()
             	+"\n\nBusqueda de relevantes para esta query:");
             for(int i=0; i<docs.length; i++) { 
-            	if (docs[i].isRelevante())
-	            if(founded.contains(docs[i].getDocId()) && res){
-	            	System.out.println("\nSe encontró el documento con ID en Indice="+docs[i].getDocId()+" en el rank "+(i+1)+", pero se descarta porque ya fue utilizado");
-	            }else {
-	            	System.out.println("\nRank: "+(i+1)
-	            			+"\nID en indice: "+docs[i].getDocId()
-	            			+"\nScore: "+docs[i].getScore()
-	            			+"\nDocIDNPL:"+searcher.doc(docs[i].getDocId()).getField("DocIDNPL").stringValue()
-	            			+"\nContent:\n"+searcher.doc(docs[i].getDocId()).getField("contents").stringValue()+"\n");
-	            	founded.add(docs[i].getDocId());
-	            	return;
-	            }
+            	if (docs[i].isRelevante()) {
+		            System.out.println("\nRank: "+(i+1)
+		            		+"\nID en indice: "+docs[i].getDocId()
+		            		+"\nScore: "+docs[i].getScore()
+		            		+"\nDocIDNPL:"+searcher.doc(docs[i].getDocId()).getField("DocIDNPL").stringValue()
+		            		+"\nContent:\n"+searcher.doc(docs[i].getDocId()).getField("contents").stringValue()+"\n");
+		            founded.add(docs[i].getDocId());
+		            return;
+            	}
             }
             System.out.println("\nNo se devolvieron nuevos documentos relevantes para esta query\n");
 
@@ -151,10 +148,7 @@ public class ManualRelevanceFeedbackNPL {
             }
             topDocs = searcher.search(query,numDocsQuery);
             for (int j=0;j<(cut+saltados)&&j<numDocsQuery;j++) 
-            	if(founded.contains(topDocs.scoreDocs[j].doc)) {
-            		System.out.println("saltouse "+topDocs.scoreDocs[j].doc);
-            		saltados++;
-            	}
+            	if(founded.contains(topDocs.scoreDocs[j].doc)&&res) saltados++;
             	else aux[j-saltados] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
             
             if(aux[aux.length-1]==null) {
