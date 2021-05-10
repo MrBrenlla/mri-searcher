@@ -27,7 +27,7 @@ public class TrainingTestNPL {
 	private static void resulatdos(float[][] train, float[] test, float valor,float best,int trainini, int testini, String type,PrintWriter pw) {
 		System.out.println("Training:");
 		if(type.equals("λ")) System.out.printf("%10s %10.4f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %n",type,valor*0.001f,valor,valor*2,valor*3,valor*4,valor*5,valor*6,valor*7,valor*8,valor*9,valor*10);
-		else System.out.printf("%10s %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f %n",type,0f,valor,valor*2,valor*3,valor*4,valor*5,valor*6,valor*7,valor*8,valor*9,valor*10);
+		else System.out.printf("%10s %10.0f %10.0f %10.0f %10.0f %10.0f %10.0f %10.0f %10.0f %10.0f %10.0f %10.0f %n",type,0f,valor,valor*2,valor*3,valor*4,valor*5,valor*6,valor*7,valor*8,valor*9,valor*10);
 		for (int j=0; j<train[0].length;j++) {
 			System.out.printf("%10d", trainini+j);
 			for (int i=0; i<11;i++) {

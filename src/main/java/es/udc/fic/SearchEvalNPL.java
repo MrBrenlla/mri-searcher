@@ -1,23 +1,5 @@
 package es.udc.fic;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.similarities.ClassicSimilarity;
-import org.apache.lucene.search.similarities.LMDirichletSimilarity;
-import org.apache.lucene.search.similarities.LMJelinekMercerSimilarity;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -25,8 +7,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Properties;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
+import org.apache.lucene.search.similarities.LMDirichletSimilarity;
+import org.apache.lucene.search.similarities.LMJelinekMercerSimilarity;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 
 class DocFeatures {
     private int docId;
@@ -158,28 +155,21 @@ public class SearchEvalNPL {
         return null;
     }
 
-    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures, ScoreDoc[] scoreDocs) {
+    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures) {
         int i,j;
         float cont = 0;
         DocFeatures[] docFeatures = queryFeatures.getDocFeatures();
-        for (i=0;i<scoreDocs.length;i++){
+        for (i=0;i<docFeatures.length;i++){
             for (j=0; j<docIdsRelevancia.length;j++) {
-                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == scoreDocs[i].doc ) {
+                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == docFeatures[i].getDocId() ) {
                     cont++;
-                    if( i<docFeatures.length && scoreDocs[i].doc == docFeatures[i].getDocId()) {
-                            queryFeatures.getDocFeatures()[i].setRelevante(true);
-                    }
-
+                    queryFeatures.getDocFeatures()[i].setRelevante(true);
                 }
-                if (i<docFeatures.length) {
-                    queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
-                    //System.out.println(" en la iteracion: "+ i + "contador: " + queryFeatures.getDocFeatures()[i].getNumRelevantes());
-                }
+                queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
             }
         }
-        queryFeatures.setNumRelevantes(cont);
+        queryFeatures.setNumRelevantes(docIdsRelevancia.length);
     }
-
     private static void CalcularMetrica(QueryFeatures[] queryFeatures, String metrica) {
         int i,j;
         float precision=0,cont = 0;
@@ -236,7 +226,7 @@ public class SearchEvalNPL {
 
             }
             System.out.println("Metrica individual: " + queryFeatures[i].getValorMetrica());
-            metricaTotal=+ queryFeatures[i].getValorMetrica();
+            metricaTotal+= queryFeatures[i].getValorMetrica();
         }
         System.out.println("Metrica total: " + (metricaTotal/totalQueries));
     }
@@ -308,7 +298,7 @@ public class SearchEvalNPL {
                         System.err.println("No existen Ids relevantes para esta query");
                         System.exit(1);
                     }
-                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[i],topDocs.scoreDocs);
+                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[i]);
 
 
                 }
@@ -343,7 +333,7 @@ public class SearchEvalNPL {
                             System.err.println("No existen Ids relevantes para esta query");
                             System.exit(1);
                         }
-                        verRelevancia(docIdsRelevanciaQuery,queryFeatures[i],topDocs.scoreDocs);
+                        verRelevancia(docIdsRelevanciaQuery,queryFeatures[i]);
 
                     }
 
@@ -368,7 +358,7 @@ public class SearchEvalNPL {
                         System.err.println("No existen Ids relevantes para esta query");
                         System.exit(1);
                     }
-                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[iniQuery],topDocs.scoreDocs);
+                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[iniQuery]);
 
 
                 }

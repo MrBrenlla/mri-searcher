@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.HashSet;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -17,7 +18,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
@@ -66,24 +66,20 @@ public class ManualRelevanceFeedbackNPL {
         return null;
     }
 
-    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures, ScoreDoc[] scoreDocs) {
+    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures) {
         int i,j;
         float cont = 0;
         DocFeatures[] docFeatures = queryFeatures.getDocFeatures();
-        for (i=0;i<scoreDocs.length;i++){
+        for (i=0;i<docFeatures.length;i++){
             for (j=0; j<docIdsRelevancia.length;j++) {
-                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == scoreDocs[i].doc ) {
+                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == docFeatures[i].getDocId() ) {
                     cont++;
-                    if( i<docFeatures.length && scoreDocs[i].doc == docFeatures[i].getDocId()) {
-                            queryFeatures.getDocFeatures()[i].setRelevante(true);
-                    }
+                    queryFeatures.getDocFeatures()[i].setRelevante(true);
                 }
-                if (i<docFeatures.length) {
-                    queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
-                }
+                queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
             }
         }
-        queryFeatures.setNumRelevantes(cont);
+        queryFeatures.setNumRelevantes(docIdsRelevancia.length);
     }
 
     private static void CalcularMetrica(QueryFeatures queryFeatures, String metrica) {
@@ -110,62 +106,78 @@ public class ManualRelevanceFeedbackNPL {
         
     }
 
-    private static void escribirResultados(QueryFeatures queryFeatures,IndexSearcher searcher) throws IOException {
+    private static void escribirResultados(QueryFeatures queryFeatures,IndexSearcher searcher, HashSet<Integer> founded,boolean res) throws IOException {
             if (queryFeatures == null) return;
             DocFeatures[] docs=queryFeatures.getDocFeatures();
             System.out.println("Query: " + queryFeatures.getNombreQuerie()
-            	+"\nMetrica: " + queryFeatures.getValorMetrica());
-            for(int i=0; i<docs.length; i++) 
-            if (docs[i].isRelevante()) {
-            	System.out.println("\n1º Relevante encontrado para esta query:\n\nRank: "+(i+1)
-            			+"\nID en indice: "+docs[i].getDocId()
-            			+"\nScore: "+docs[i].getScore()
-            			+"\nDocIDNPL:"+searcher.doc(docs[i].getDocId()).getField("DocIDNPL").stringValue()
-            			+"\nContent:\n"+searcher.doc(docs[i].getDocId()).getField("contents").stringValue()+"\n");
-            	return;
+            	+"\nMetrica: " + queryFeatures.getValorMetrica()
+            	+"\n\nBusqueda de relevantes para esta query:");
+            for(int i=0; i<docs.length; i++) { 
+            	if (docs[i].isRelevante())
+	            if(founded.contains(docs[i].getDocId()) && res){
+	            	System.out.println("\nSe encontró el documento con ID en Indice="+docs[i].getDocId()+" en el rank "+(i+1)+", pero se descarta porque ya fue utilizado");
+	            }else {
+	            	System.out.println("\nRank: "+(i+1)
+	            			+"\nID en indice: "+docs[i].getDocId()
+	            			+"\nScore: "+docs[i].getScore()
+	            			+"\nDocIDNPL:"+searcher.doc(docs[i].getDocId()).getField("DocIDNPL").stringValue()
+	            			+"\nContent:\n"+searcher.doc(docs[i].getDocId()).getField("contents").stringValue()+"\n");
+	            	founded.add(docs[i].getDocId());
+	            	return;
+	            }
             }
-            System.out.println("\nNo se devolvieron documentos relevantes para esta query\n");
+            System.out.println("\nNo se devolvieron nuevos documentos relevantes para esta query\n");
 
     }
 
-    public static QueryFeatures busquedaInicial( String metrica, int cut,String [] docIdsRelevanciaQuery ,Query query,IndexSearcher searcher) {
+    public static QueryFeatures buscar( String metrica, int cut,String [] docIdsRelevanciaQuery ,Query query,IndexSearcher searcher,HashSet<Integer> founded,boolean res) {
        
 
         QueryFeatures queryFeatures = null;
         try {
             TopDocs topDocs;
+            DocFeatures[] aux;
             DocFeatures[] docFeatures;
-
+            int saltados=0;
             
-
-           
-
-            int numDocsQuerie = searcher.count(query);
-            if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
-            else docFeatures = new DocFeatures[cut];
-            if (numDocsQuerie == 0) {
-            	System.err.println("No existen documentos para esta query");
-           	 	System.exit(1);
+            int numDocsQuery = searcher.count(query);
+            
+            /*if (numDocsQuerie<cut) aux = new DocFeatures[numDocsQuerie];
+            else */
+            aux = new DocFeatures[cut];
+            if (numDocsQuery == 0) {
+            	System.err.println("No existen documentos para esta query\n");
+           	 	return null;
             }
-            topDocs = searcher.search(query,numDocsQuerie);
-            for (int j=0;j<cut&&j<numDocsQuerie;j++) docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
+            topDocs = searcher.search(query,numDocsQuery);
+            for (int j=0;j<(cut+saltados)&&j<numDocsQuery;j++) 
+            	if(founded.contains(topDocs.scoreDocs[j].doc)) {
+            		System.out.println("saltouse "+topDocs.scoreDocs[j].doc);
+            		saltados++;
+            	}
+            	else aux[j-saltados] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
+            
+            if(aux[aux.length-1]==null) {
+            	docFeatures = new DocFeatures[numDocsQuery-saltados];
+            	for(int i=0; i<docFeatures.length;i++) {
+            		docFeatures[i]=aux[i];
+            	}
+            }
+            else docFeatures=aux;
             queryFeatures = new QueryFeatures(query.toString("contents"),docFeatures);
                  
                  if (docIdsRelevanciaQuery == null) {
-                	 System.err.println("No existen Ids relevantes para esta query");
-                	 System.exit(1);
+                	 System.err.println("No existen Ids relevantes para esta query\n");
+                	 return null;
                  }
-                 verRelevancia(docIdsRelevanciaQuery,queryFeatures,topDocs.scoreDocs);
+                 verRelevancia(docIdsRelevanciaQuery,queryFeatures);
             
             CalcularMetrica(queryFeatures,metrica);
+
         } catch (IOException | NumberFormatException e) {
             e.printStackTrace();
-        }finally {
-        	if (queryFeatures == null) {
-                System.err.println("Ha habido un error con el valor de las queries");
-                System.exit(-1);
-                
-            }
+            System.err.println("Ha habido un error con la queries\n");
+            return null;
         }
 
         return queryFeatures;
@@ -174,7 +186,7 @@ public class ManualRelevanceFeedbackNPL {
 
     public static void main(String[] args) {
         String usage = "java es.udc.fic.IndexNPL" + " -indexin INDEX_PATH -cut n -metrica P|R|MAP" +
-                "-queries Q -retmodel jm lambda| dir mu| tfidf            \n\n"; 
+                "-queries Q -retmodel jm lambda| dir mu| tfidf [-residual T|F]           \n\n"; 
 
         String indexPath = null;
         int cut = -1;
@@ -183,6 +195,8 @@ public class ManualRelevanceFeedbackNPL {
         String search = null;
         float smooth = -1.f;
         QueryFeatures queryFeatures;
+        boolean res=false;
+        
         for (int i = 0; i < args.length; i++) {
             if ("-indexin".equals(args[i])) {
                 indexPath = args[i + 1];
@@ -206,6 +220,9 @@ public class ManualRelevanceFeedbackNPL {
                     i++;
                     smooth=0f;
                 }
+            }else if ("-residual".equals(args[i])) {
+                if ("T".equals(args[i+1].toUpperCase())) res=true;
+                i++;
             }
         }
 
@@ -234,6 +251,7 @@ public class ManualRelevanceFeedbackNPL {
         IndexSearcher searcher = new IndexSearcher(readerIndex);
         Boolean aux=true;
         Scanner in = new Scanner(System.in);
+        HashSet<Integer> founded = new HashSet<>();
         
         QueryParser parser = new QueryParser("contents", analyzer);
         String [] docIdsRelevanciaQuery = leerRelevancia(relevancetext,querynum);
@@ -252,19 +270,19 @@ public class ManualRelevanceFeedbackNPL {
             searcher.setSimilarity(new ClassicSimilarity());
         }
         
-        queryFeatures = busquedaInicial(metrica, cut,docIdsRelevanciaQuery, parser.parse(leerQueryText(querytext,querynum).toLowerCase()),searcher);
-        escribirResultados(queryFeatures, searcher);
+        queryFeatures = buscar(metrica, cut,docIdsRelevanciaQuery, parser.parse(leerQueryText(querytext,querynum).toLowerCase()),searcher,founded,res);
+        if(queryFeatures!=null) escribirResultados(queryFeatures, searcher,founded,res);
         
         System.out.print("Desea reformular la query?(S/N) ");
         if (!in.nextLine().toLowerCase().equals("s")) aux=false;
         while(aux) {
         	System.out.print("Nueva query: ");
-        	queryFeatures = busquedaInicial(metrica, cut,docIdsRelevanciaQuery,parser.parse(in.nextLine().toLowerCase()),searcher);
-            escribirResultados(queryFeatures, searcher);
+        	queryFeatures = buscar(metrica, cut,docIdsRelevanciaQuery,parser.parse(in.nextLine().toLowerCase()),searcher,founded,res);
+            if(queryFeatures!=null) escribirResultados(queryFeatures, searcher,founded,res);
             System.out.print("Desea reformular la query?(S/N) ");
             if (!in.nextLine().toLowerCase().equals("s")) aux=false;
         }
-        System.out.print("ending program "+aux);
+        System.out.print("ending program ");
         in.close();
         } catch (IOException e1) {
             e1.printStackTrace();
