@@ -165,7 +165,7 @@ public class ManualRelevanceFeedbackNPL {
                 	 return null;
                  }
                  verRelevancia(docIdsRelevanciaQuery,queryFeatures);
-            
+                 queryFeatures.setNumRelevantes(queryFeatures.getNumRelevantes()-founded.size());
             CalcularMetrica(queryFeatures,metrica);
 
         } catch (IOException | NumberFormatException e) {
