@@ -61,7 +61,7 @@ public class ManualRelevanceFeedbackNPL {
                     break;
                 }
             }
-            for(String aux : docIds) if(!s.equals(" ")) result.add(aux);
+            for(String aux : docIds) if(!aux.equals("")) result.add(aux);
             return result;
         } catch (IOException e) {
             e.printStackTrace();
@@ -168,7 +168,6 @@ public class ManualRelevanceFeedbackNPL {
                  }
                  verRelevancia(docIdsRelevanciaQuery,queryFeatures);
                  if(res)queryFeatures.setNumRelevantes(queryFeatures.getNumRelevantes()-founded.size());
-                 System.out.println(queryFeatures.getNumRelevantes());
             CalcularMetrica(queryFeatures,metrica);
 
         } catch (IOException | NumberFormatException e) {
