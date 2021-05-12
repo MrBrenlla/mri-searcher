@@ -44,10 +44,11 @@ public class ManualRelevanceFeedbackNPL {
         return query;
     }
 
-    private static String[] leerRelevancia(String pathString, int querie) {
+    private static HashSet<String> leerRelevancia(String pathString, int querie) {
         Path path = Path.of(pathString);
         String[] docs;
-        String[] docIds;
+        String[] docIds=null;
+        HashSet<String> result=new HashSet<>();
         try (InputStream stream = Files.newInputStream(path)) {
             String s = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             docs = s.split("\n   /\n");
@@ -57,29 +58,30 @@ public class ManualRelevanceFeedbackNPL {
                 if (docs[i].substring(0, part).equals(querie+"")) {
                     content = content.replaceAll("\\s+"," ");
                     docIds = content.split(" ");
-                    return docIds;
+                    break;
                 }
             }
+            for(String aux : docIds) if(!s.equals(" ")) result.add(aux);
+            return result;
         } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
     }
-
-    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures) {
-        int i,j;
+    
+    
+    private static void verRelevancia(HashSet<String> docIdsRelevancia, QueryFeatures queryFeatures) {
+        int i;
         float cont = 0;
         DocFeatures[] docFeatures = queryFeatures.getDocFeatures();
         for (i=0;i<docFeatures.length;i++){
-            for (j=0; j<docIdsRelevancia.length;j++) {
-                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == docFeatures[i].getDocId() ) {
-                    cont++;
-                    queryFeatures.getDocFeatures()[i].setRelevante(true);
-                }
-                queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
-            }
+        	if (docIdsRelevancia.contains(String.valueOf(docFeatures[i].getDocId()))) {
+        		cont++;
+        		queryFeatures.getDocFeatures()[i].setRelevante(true);
+        	}
+        	queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
         }
-        queryFeatures.setNumRelevantes(docIdsRelevancia.length);
+        queryFeatures.setNumRelevantes(docIdsRelevancia.size());
     }
 
     private static void CalcularMetrica(QueryFeatures queryFeatures, String metrica) {
@@ -127,7 +129,7 @@ public class ManualRelevanceFeedbackNPL {
 
     }
 
-    public static QueryFeatures buscar( String metrica, int cut,String [] docIdsRelevanciaQuery ,Query query,IndexSearcher searcher,HashSet<Integer> founded,boolean res) {
+    public static QueryFeatures buscar( String metrica, int cut,HashSet<String> docIdsRelevanciaQuery ,Query query,IndexSearcher searcher,HashSet<Integer> founded,boolean res) {
        
 
         QueryFeatures queryFeatures = null;
@@ -165,7 +167,8 @@ public class ManualRelevanceFeedbackNPL {
                 	 return null;
                  }
                  verRelevancia(docIdsRelevanciaQuery,queryFeatures);
-                 queryFeatures.setNumRelevantes(queryFeatures.getNumRelevantes()-founded.size());
+                 if(res)queryFeatures.setNumRelevantes(queryFeatures.getNumRelevantes()-founded.size());
+                 System.out.println(queryFeatures.getNumRelevantes());
             CalcularMetrica(queryFeatures,metrica);
 
         } catch (IOException | NumberFormatException e) {
@@ -248,7 +251,7 @@ public class ManualRelevanceFeedbackNPL {
         HashSet<Integer> founded = new HashSet<>();
         
         QueryParser parser = new QueryParser("contents", analyzer);
-        String [] docIdsRelevanciaQuery = leerRelevancia(relevancetext,querynum);
+        HashSet<String> docIdsRelevanciaQuery = leerRelevancia(relevancetext,querynum);
         
         if (search==null){
             System.out.println("search not specified: Correct formats are \"jm lambda\", \"dir mu\" and \"tfidf\". Running tfidf as default" );
