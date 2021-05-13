@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Properties;
 
@@ -133,10 +134,11 @@ public class SearchEvalNPL {
         return docs;
     }
 
-    private static String[] leerRelevancia(String pathString, int querie) {
+    private static HashSet<String> leerRelevancia(String pathString, int querie) {
         Path path = Path.of(pathString);
         String[] docs;
-        String[] docIds;
+        String[] docIds=null;
+        HashSet<String> result=new HashSet<>();
         try (InputStream stream = Files.newInputStream(path)) {
             String s = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             docs = s.split("\n   /\n");
@@ -146,30 +148,35 @@ public class SearchEvalNPL {
                 if (docs[i].substring(0, part).equals(querie+"")) {
                     content = content.replaceAll("\\s+"," ");
                     docIds = content.split(" ");
-                    return docIds;
+                    break;
                 }
             }
+            for(String aux : docIds) {
+                if(!aux.equals("")) result.add(aux);
+            }
+            return result;
         } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    private static void verRelevancia(String[] docIdsRelevancia, QueryFeatures queryFeatures) {
-        int i,j;
+    private static void verRelevancia(HashSet<String> docIdsRelevancia, QueryFeatures queryFeatures) {
+        int i;
         float cont = 0;
         DocFeatures[] docFeatures = queryFeatures.getDocFeatures();
         for (i=0;i<docFeatures.length;i++){
-            for (j=0; j<docIdsRelevancia.length;j++) {
-                if (!docIdsRelevancia[j].equals("") && Integer.valueOf(docIdsRelevancia[j]) == docFeatures[i].getDocId() ) {
+            for(String aux: docIdsRelevancia) {
+                if (Integer.valueOf(aux) == docFeatures[i].getDocId() ) {
                     cont++;
                     queryFeatures.getDocFeatures()[i].setRelevante(true);
                 }
                 queryFeatures.getDocFeatures()[i].setNumRelevantes(cont);
             }
         }
-        queryFeatures.setNumRelevantes(docIdsRelevancia.length);
+        queryFeatures.setNumRelevantes(docIdsRelevancia.size());
     }
+
     private static void CalcularMetrica(QueryFeatures[] queryFeatures, String metrica) {
         int i,j;
         float precision=0,cont = 0;
@@ -254,7 +261,7 @@ public class SearchEvalNPL {
             TopDocs topDocs;
 
             String [] queryArray;
-            String [] docIdsRelevanciaQuery;
+            HashSet<String> docIdsRelevanciaQuery;
             DocFeatures[] docFeatures;
             int i,j;
 
@@ -279,7 +286,7 @@ public class SearchEvalNPL {
             if (queries.equals("all")) {
                 queryFeatures = new QueryFeatures[queryArray.length];
                 for(i=0;i<queryArray.length;i++) {
-                    query = parser.parse(queryArray[i]);
+                    query = parser.parse(queryArray[i].toLowerCase());
                     int numDocsQuerie = searcher.count(query);
                     if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
                     else docFeatures = new DocFeatures[cut];
@@ -287,7 +294,7 @@ public class SearchEvalNPL {
                         queryFeatures[i] = null;
                         continue;
                     }
-                    topDocs = searcher.search(query,numDocsQuerie);
+                    topDocs = searcher.search(query,cut);
 
                     for (j=0;j<cut&&j<numDocsQuerie;j++) {
                         docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
@@ -311,10 +318,9 @@ public class SearchEvalNPL {
                 iniQuery = Integer.valueOf(partsQuery[0])-1;
                 if (partsQuery.length>1) {
                     finQuery = Integer.valueOf(partsQuery[1])-1;
-                    //System.out.println(iniQuery + "-" + finQuery);
                     queryFeatures = new QueryFeatures[(finQuery-iniQuery)+1];
                     for(i=0;i<queryFeatures.length;i++) {
-                        query = parser.parse(queryArray[i+iniQuery]);
+                        query = parser.parse(queryArray[i+iniQuery].toLowerCase());
                         int numDocsQuerie = searcher.count(query);
                         if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
                         else docFeatures = new DocFeatures[cut];
@@ -322,7 +328,7 @@ public class SearchEvalNPL {
                             queryFeatures[i] = null;
                             continue;
                         }
-                        topDocs = searcher.search(query,numDocsQuerie);
+                        topDocs = searcher.search(query,cut);
 
                         for (j=0;j<cut&&j<numDocsQuerie;j++) {
                             docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
@@ -339,32 +345,29 @@ public class SearchEvalNPL {
 
                 } else {
                     queryFeatures = new QueryFeatures[1];
-                    query = parser.parse(queryArray[iniQuery]);
+                    query = parser.parse(queryArray[iniQuery].toLowerCase());
                     int numDocsQuerie = searcher.count(query);
                     if (numDocsQuerie<cut) docFeatures = new DocFeatures[numDocsQuerie];
                     else docFeatures = new DocFeatures[cut];
                     if (numDocsQuerie == 0) {
-                        queryFeatures[iniQuery] = null;
+                        queryFeatures[0] = null;
                         return null;
                     }
-                    topDocs = searcher.search(query,numDocsQuerie);
+                    topDocs = searcher.search(query,cut);
 
                     for (j=0;j<cut&&j<numDocsQuerie;j++) {
                         docFeatures[j] = new DocFeatures(topDocs.scoreDocs[j].doc,topDocs.scoreDocs[j].score,false);
                     }
-                    queryFeatures[iniQuery] = new QueryFeatures(queryArray[iniQuery],docFeatures);
+                    queryFeatures[0] = new QueryFeatures(queryArray[iniQuery],docFeatures);
                     docIdsRelevanciaQuery = leerRelevancia(relevancetext,iniQuery+1);
                     if (docIdsRelevanciaQuery == null) {
                         System.err.println("No existen Ids relevantes para esta query");
                         System.exit(1);
                     }
-                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[iniQuery]);
-
+                    verRelevancia(docIdsRelevanciaQuery,queryFeatures[0]);
 
                 }
             }
-
-            
 
             CalcularMetrica(queryFeatures,metrica);
 
@@ -384,7 +387,7 @@ public class SearchEvalNPL {
     }
 
     public static void main(String[] args) {
-        String usage = "java es.udc.fic.IndexNPL" + " [-indexin INDEX_PATH] [-cut n] [-metrica P|R|MAP]" +
+        String usage = "java es.udc.fic.SeatchEvalNPL" + " [-indexin INDEX_PATH] [-cut n] [-metrica P|R|MAP]" +
                 " [-top m] [-queries all|int1|int1-int2] [-search jm lambda| dir mu| tfidf]              \n\n";
 
         String indexPath = null;
