@@ -181,8 +181,8 @@ public class ManualRelevanceFeedbackNPL {
     }
 
     public static void main(String[] args) {
-        String usage = "java es.udc.fic.IndexNPL" + " -indexin INDEX_PATH -cut n -metrica P|R|MAP" +
-                "-queries Q -retmodel jm lambda| dir mu| tfidf [-residual T|F]           \n\n"; 
+        String usage = "java es.udc.fic.ManualRelevanceFeedbackNPL" + " -indexin INDEX_PATH -cut n -metrica P|R|MAP" +
+                " -queries Q -retmodel jm lambda| dir mu| tfidf [-residual T|F]           \n\n";
 
         String indexPath = null;
         int cut = -1;

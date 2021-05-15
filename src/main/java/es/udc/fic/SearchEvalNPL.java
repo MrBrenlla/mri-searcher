@@ -387,8 +387,8 @@ public class SearchEvalNPL {
     }
 
     public static void main(String[] args) {
-        String usage = "java es.udc.fic.SeatchEvalNPL" + " [-indexin INDEX_PATH] [-cut n] [-metrica P|R|MAP]" +
-                " [-top m] [-queries all|int1|int1-int2] [-search jm lambda| dir mu| tfidf]              \n\n";
+        String usage = "java es.udc.fic.SeatchEvalNPL" + " -indexin INDEX_PATH -cut n -metrica P|R|MAP" +
+                " -top m -queries all|int1|int1-int2 -search jm lambda| dir mu| tfidf             \n\n";
 
         String indexPath = null;
         int cut = -1;

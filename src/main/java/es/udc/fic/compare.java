@@ -64,7 +64,7 @@ public class compare {
 
     }
     public static void main(String[] args) {
-        String usage = "java es.udc.fic.compare" + " [-results result1-result2] [-test t|wilcoxon alpha]\n\n";
+        String usage = "java es.udc.fic.compare" + " -results result1-result2 -test t|wilcoxon alpha\n\n";
         String [] allResults;
         String result1 = null;
         String result2 = null;
@@ -91,8 +91,6 @@ public class compare {
 
         double[] FirstResult = leerResults(result1);
         double[] SecondResult = leerResults(result2);
-        //for (double aux : FirstResult) System.out.println(aux);
-        //for (double aux : SecondResult) System.out.println(aux);
         realizarTest(FirstResult,SecondResult,test,alpha);
     }
 }
